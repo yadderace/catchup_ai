@@ -24,6 +24,12 @@ std::string cell_to_string(catchup::Cell cell) {
     throw std::runtime_error("unreachable");
 }
 
+catchup::Cell string_to_stone_color(const std::string& color) {
+    if (color == "white") return catchup::Cell::White;
+    if (color == "black") return catchup::Cell::Black;
+    throw std::invalid_argument("color must be 'white' or 'black'");
+}
+
 }  // namespace
 
 PYBIND11_MODULE(catchup_engine, m) {
@@ -38,5 +44,14 @@ PYBIND11_MODULE(catchup_engine, m) {
         .def("neighbors", &catchup::Board::neighbors, py::arg("slot"))
         .def("color_at", [](const catchup::Board& board, int slot) {
             return cell_to_string(board.color_at(slot));
-        }, py::arg("slot"));
+        }, py::arg("slot"))
+        .def("place_stone", [](catchup::Board& board, int slot, const std::string& color) {
+            board.place_stone(slot, string_to_stone_color(color));
+        }, py::arg("slot"), py::arg("color"))
+        .def("largest_group", [](const catchup::Board& board, const std::string& color) {
+            return board.largest_group_size(string_to_stone_color(color));
+        }, py::arg("color"))
+        .def("sorted_group_sizes", [](const catchup::Board& board, const std::string& color) {
+            return board.sorted_group_sizes(string_to_stone_color(color));
+        }, py::arg("color"));
 }

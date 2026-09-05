@@ -8,6 +8,27 @@ namespace catchup {
 
 enum class Cell { Empty, White, Black };
 
+// Disjoint-set (union-find) over a fixed universe of n slots.
+// Every slot starts as its own singleton group.
+// unite() merges two groups.
+class DisjointSet {
+public:
+  explicit DisjointSet(int n);
+
+  // Root of x group, with path compression along the way.
+  int find(int x) const;
+
+  // Merges the groups containing a and b (no-op if already the same group).
+  void unite(int a, int b);
+
+  // Size of the group containing x.
+  int size_of(int x) const { return size_[find(x)]; }
+
+private:
+  mutable std::vector<int> parent_;
+  std::vector<int> size_;
+};
+
 // Precomputed shape of a hex-hex board of a given side length
 class HexHexShape {
 public:
@@ -54,11 +75,27 @@ public:
   const std::vector<int> &neighbors(int slot) const;
   Cell color_at(int slot) const;
 
+  // Places a stone of the given color on an empty cell, merging it with
+  // any same-color neighbors into their group(s). Throws if the slot is
+  // out of range, already occupied, or color is Cell::Empty.
+  void place_stone(int slot, Cell color);
+
+  // Size of that color's largest group on the board (0 if it has none).
+  int largest_group_size(Cell color) const;
+
+  // Sizes of every one of that color's groups, descending
+  std::vector<int> sorted_group_sizes(Cell color) const;
+
 private:
   void check_slot(int slot) const;
+  DisjointSet &groups_for(Cell color);
+  const DisjointSet &groups_for(Cell color) const;
+  std::vector<int> group_sizes(Cell color) const;
 
   std::shared_ptr<const HexHexShape> shape_;
   std::vector<Cell> cells_;
+  DisjointSet white_groups_;
+  DisjointSet black_groups_;
 };
 
 } // namespace catchup

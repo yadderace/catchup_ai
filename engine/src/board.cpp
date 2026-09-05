@@ -1,8 +1,10 @@
 #include "catchup/board.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <mutex>
+#include <numeric>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -21,6 +23,34 @@ constexpr std::array<std::pair<int, int>, 6> kNeighborOffsets = {{
 }};
 
 } // namespace
+
+// Every slot starts out as its own singleton group.
+DisjointSet::DisjointSet(int n) : parent_(n), size_(n, 1) {
+  std::iota(parent_.begin(), parent_.end(), 0);
+}
+
+// Path-halving find: walk toward the root, flattening pointers as we go.
+int DisjointSet::find(int x) const {
+  while (parent_[x] != x) {
+    parent_[x] = parent_[parent_[x]];
+    x = parent_[x];
+  }
+  return x;
+}
+
+// Union by size: attach the smaller group's root under the bigger one's.
+void DisjointSet::unite(int a, int b) {
+  int root_a = find(a);
+  int root_b = find(b);
+  if (root_a == root_b) {
+    return;
+  }
+  if (size_[root_a] < size_[root_b]) {
+    std::swap(root_a, root_b);
+  }
+  parent_[root_b] = root_a;
+  size_[root_a] += size_[root_b];
+}
 
 // Builds the shape for a side-length-n hexagon assigns every valid axial
 // (q, r) a compact slot number, then precomputes each slot's neighbor list.
@@ -85,10 +115,14 @@ std::shared_ptr<const HexHexShape> get_hex_hex_shape(int side_length) {
   return it->second;
 }
 
-// Starts a new, empty board of the given side length.
+// Starts a new, empty board of the given side length. Each color gets its
+// own union-find, sized for the full board (unused slots -- the other
+// color's stones and empty cells -- just stay untouched singletons).
 Board::Board(int side_length)
     : shape_(get_hex_hex_shape(side_length)),
-      cells_(shape_->num_cells(), Cell::Empty) {}
+      cells_(shape_->num_cells(), Cell::Empty),
+      white_groups_(shape_->num_cells()),
+      black_groups_(shape_->num_cells()) {}
 
 // Guards the public accessors below against an out-of-range slot number.
 void Board::check_slot(int slot) const {
@@ -113,6 +147,68 @@ const std::vector<int> &Board::neighbors(int slot) const {
 Cell Board::color_at(int slot) const {
   check_slot(slot);
   return cells_[slot];
+}
+
+// Picks the union-find for a color; Empty has no group tracking.
+DisjointSet &Board::groups_for(Cell color) {
+  return color == Cell::White ? white_groups_ : black_groups_;
+}
+
+const DisjointSet &Board::groups_for(Cell color) const {
+  return color == Cell::White ? white_groups_ : black_groups_;
+}
+
+// Occupies an empty cell and unites it with any same-color neighbors --
+// each merge is what keeps that color's largest-group size correct
+// without ever rescanning the whole board.
+void Board::place_stone(int slot, Cell color) {
+  check_slot(slot);
+  if (color == Cell::Empty) {
+    throw std::invalid_argument("color must be white or black");
+  }
+  if (cells_[slot] != Cell::Empty) {
+    throw std::invalid_argument("cell is already occupied");
+  }
+
+  cells_[slot] = color;
+  DisjointSet &groups = groups_for(color);
+  for (int neighbor : neighbors(slot)) {
+    if (cells_[neighbor] == color) {
+      groups.unite(slot, neighbor);
+    }
+  }
+}
+
+// Scans every stone of the given color once, keeping only the first size
+// seen per distinct root -- that's what turns "one entry per stone" into
+// "one entry per group".
+std::vector<int> Board::group_sizes(Cell color) const {
+  const DisjointSet &groups = groups_for(color);
+  std::vector<int> sizes;
+  std::unordered_map<int, bool> seen_roots;
+  for (int slot = 0; slot < num_cells(); ++slot) {
+    if (cells_[slot] == color) {
+      int root = groups.find(slot);
+      if (seen_roots.emplace(root, true).second) {
+        sizes.push_back(groups.size_of(root));
+      }
+    }
+  }
+  return sizes;
+}
+
+int Board::largest_group_size(Cell color) const {
+  std::vector<int> sizes = group_sizes(color);
+  if (sizes.empty()) {
+    return 0;
+  }
+  return *std::max_element(sizes.begin(), sizes.end());
+}
+
+std::vector<int> Board::sorted_group_sizes(Cell color) const {
+  std::vector<int> sizes = group_sizes(color);
+  std::sort(sizes.begin(), sizes.end(), std::greater<int>());
+  return sizes;
 }
 
 } // namespace catchup
