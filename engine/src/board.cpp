@@ -29,7 +29,7 @@ DisjointSet::DisjointSet(int n) : parent_(n), size_(n, 1) {
   std::iota(parent_.begin(), parent_.end(), 0);
 }
 
-// Path-halving find: walk toward the root, flattening pointers as we go.
+// Walk toward the root, flattening pointers as we go.
 int DisjointSet::find(int x) const {
   while (parent_[x] != x) {
     parent_[x] = parent_[parent_[x]];
@@ -38,7 +38,7 @@ int DisjointSet::find(int x) const {
   return x;
 }
 
-// Union by size: attach the smaller group's root under the bigger one's.
+// Attach the smaller group's root under the bigger one's.
 void DisjointSet::unite(int a, int b) {
   int root_a = find(a);
   int root_b = find(b);
@@ -121,8 +121,7 @@ std::shared_ptr<const HexHexShape> get_hex_hex_shape(int side_length) {
 Board::Board(int side_length)
     : shape_(get_hex_hex_shape(side_length)),
       cells_(shape_->num_cells(), Cell::Empty),
-      white_groups_(shape_->num_cells()),
-      black_groups_(shape_->num_cells()) {}
+      white_groups_(shape_->num_cells()), black_groups_(shape_->num_cells()) {}
 
 // Guards the public accessors below against an out-of-range slot number.
 void Board::check_slot(int slot) const {
@@ -149,7 +148,7 @@ Cell Board::color_at(int slot) const {
   return cells_[slot];
 }
 
-// Picks the union-find for a color; Empty has no group tracking.
+// Picks the union-find for a color.
 DisjointSet &Board::groups_for(Cell color) {
   return color == Cell::White ? white_groups_ : black_groups_;
 }
@@ -158,9 +157,7 @@ const DisjointSet &Board::groups_for(Cell color) const {
   return color == Cell::White ? white_groups_ : black_groups_;
 }
 
-// Occupies an empty cell and unites it with any same-color neighbors --
-// each merge is what keeps that color's largest-group size correct
-// without ever rescanning the whole board.
+// Occupies an empty cell and unites it with any same-color neighbors.
 void Board::place_stone(int slot, Cell color) {
   check_slot(slot);
   if (color == Cell::Empty) {
@@ -180,8 +177,7 @@ void Board::place_stone(int slot, Cell color) {
 }
 
 // Scans every stone of the given color once, keeping only the first size
-// seen per distinct root -- that's what turns "one entry per stone" into
-// "one entry per group".
+// seen per distinct root.
 std::vector<int> Board::group_sizes(Cell color) const {
   const DisjointSet &groups = groups_for(color);
   std::vector<int> sizes;
