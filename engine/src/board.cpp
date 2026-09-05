@@ -1,0 +1,118 @@
+#include "catchup/board.hpp"
+
+#include <array>
+#include <cstdlib>
+#include <mutex>
+#include <stdexcept>
+#include <unordered_map>
+
+namespace catchup {
+
+namespace {
+
+// The 6 axial neighbor offsets
+constexpr std::array<std::pair<int, int>, 6> kNeighborOffsets = {{
+    {1, 0},
+    {-1, 0},
+    {0, 1},
+    {0, -1},
+    {1, -1},
+    {-1, 1},
+}};
+
+} // namespace
+
+// Builds the shape for a side-length-n hexagon assigns every valid axial
+// (q, r) a compact slot number, then precomputes each slot's neighbor list.
+HexHexShape::HexHexShape(int side_length) : side_length_(side_length) {
+  if (side_length_ < 1) {
+    throw std::invalid_argument("side_length must be >= 1");
+  }
+  radius_ = side_length_ - 1;
+  grid_size_ = 2 * radius_ + 1;
+  num_cells_ = 3 * side_length_ * side_length_ - 3 * side_length_ + 1;
+
+  axial_to_index_.assign(static_cast<size_t>(grid_size_) * grid_size_, -1);
+  axial_of_.reserve(num_cells_);
+
+  // Pass 1, scan every (q, r) in the bounding square,
+  // assign slot numbers in the order they're found.
+  for (int q = -radius_; q <= radius_; ++q) {
+    for (int r = -radius_; r <= radius_; ++r) {
+      int s = -q - r;
+      if (std::abs(q) <= radius_ && std::abs(r) <= radius_ &&
+          std::abs(s) <= radius_) {
+        int slot = static_cast<int>(axial_of_.size());
+        axial_to_index_[grid_index(q, r)] = slot;
+        axial_of_.emplace_back(q, r);
+      }
+    }
+  }
+
+  // Pass 2: now that every valid cell has a slot, look up each of its 6
+  // axial neighbors and keep only the ones that resolved to a real slot.
+  neighbors_of_.resize(num_cells_);
+  for (int slot = 0; slot < num_cells_; ++slot) {
+    const auto [q, r] = axial_of_[slot];
+    auto &neighbors = neighbors_of_[slot];
+    for (const auto &[dq, dr] : kNeighborOffsets) {
+      const int n = index_of(q + dq, r + dr);
+      if (n >= 0) {
+        neighbors.push_back(n);
+      }
+    }
+  }
+}
+
+// Looks up the slot for an axial coordinate, or -1 if it's off the board.
+int HexHexShape::index_of(int q, int r) const {
+  if (q < -radius_ || q > radius_ || r < -radius_ || r > radius_) {
+    return -1;
+  }
+  return axial_to_index_[grid_index(q, r)];
+}
+
+// Returns the shared shape for a side length
+std::shared_ptr<const HexHexShape> get_hex_hex_shape(int side_length) {
+  static std::mutex mutex;
+  static std::unordered_map<int, std::shared_ptr<const HexHexShape>> cache;
+
+  std::lock_guard<std::mutex> lock(mutex);
+  auto [it, inserted] = cache.try_emplace(side_length, nullptr);
+  if (inserted) {
+    it->second = std::make_shared<const HexHexShape>(side_length);
+  }
+  return it->second;
+}
+
+// Starts a new, empty board of the given side length.
+Board::Board(int side_length)
+    : shape_(get_hex_hex_shape(side_length)),
+      cells_(shape_->num_cells(), Cell::Empty) {}
+
+// Guards the public accessors below against an out-of-range slot number.
+void Board::check_slot(int slot) const {
+  if (slot < 0 || slot >= num_cells()) {
+    throw std::out_of_range("cell slot out of range");
+  }
+}
+
+// (q, r) axial coordinate of a slot, for rendering/labeling.
+std::pair<int, int> Board::coords(int slot) const {
+  check_slot(slot);
+  return shape_->coords_of(slot);
+}
+
+// Neighbor slots of a cell (up to 6, fewer at the board's edge/corners).
+const std::vector<int> &Board::neighbors(int slot) const {
+  check_slot(slot);
+  return shape_->neighbors_of(slot);
+}
+
+// Current occupant of a cell (empty/white/black).
+Cell Board::color_at(int slot) const {
+  check_slot(slot);
+  return cells_[slot];
+}
+
+} // namespace catchup

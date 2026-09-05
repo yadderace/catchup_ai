@@ -4,3 +4,5 @@ __pycache__/
 *.so
 *.pyc
 plan/
+compile_commands.json
+.cache/
