@@ -207,4 +207,22 @@ std::vector<int> Board::sorted_group_sizes(Cell color) const {
   return sizes;
 }
 
+bool Board::is_empty() const {
+  for (Cell cell : cells_) {
+    if (cell != Cell::Empty) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Board::is_full() const {
+  for (Cell cell : cells_) {
+    if (cell == Cell::Empty) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace catchup

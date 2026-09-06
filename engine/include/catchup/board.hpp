@@ -86,6 +86,12 @@ public:
   // Sizes of every one of that color's groups, descending
   std::vector<int> sorted_group_sizes(Cell color) const;
 
+  // True if no stone has been placed yet.
+  bool is_empty() const;
+
+  // True if every cell is occupied.
+  bool is_full() const;
+
 private:
   void check_slot(int slot) const;
   DisjointSet &groups_for(Cell color);

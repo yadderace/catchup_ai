@@ -5,6 +5,7 @@
 #include <string>
 
 #include "catchup/board.hpp"
+#include "catchup/game_state.hpp"
 
 namespace py = pybind11;
 
@@ -54,4 +55,18 @@ PYBIND11_MODULE(catchup_engine, m) {
         .def("sorted_group_sizes", [](const catchup::Board& board, const std::string& color) {
             return board.sorted_group_sizes(string_to_stone_color(color));
         }, py::arg("color"));
+
+    py::class_<catchup::GameState>(m, "GameState")
+        .def(py::init<int>(), py::arg("side_length"))
+        .def_property_readonly("board", &catchup::GameState::board)
+        .def_property_readonly("to_move", [](const catchup::GameState& state) {
+            return cell_to_string(state.to_move());
+        })
+        .def_property_readonly("min_allowed", &catchup::GameState::min_allowed)
+        .def_property_readonly("max_allowed", &catchup::GameState::max_allowed)
+        .def_property_readonly("is_terminal", &catchup::GameState::is_terminal)
+        .def_property_readonly("winner", [](const catchup::GameState& state) {
+            return cell_to_string(state.winner());
+        })
+        .def("apply_move", &catchup::GameState::apply_move, py::arg("move"));
 }
