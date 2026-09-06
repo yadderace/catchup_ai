@@ -28,6 +28,10 @@ public:
   // any cell is invalid or already occupied, or the game is already over.
   GameState apply_move(const std::vector<int> &move) const;
 
+  // Every legal move for the current player, all combinations of empty
+  // cells with size in [min_allowed, max_allowed].
+  std::vector<std::vector<int>> legal_moves() const;
+
 private:
   GameState(Board board, Cell to_move, int max_allowed);
 

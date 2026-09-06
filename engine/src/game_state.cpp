@@ -6,6 +6,25 @@
 
 namespace catchup {
 
+namespace {
+
+// Appends every size-k combination of items[start:] to `out`.
+void collect_combinations(const std::vector<int> &items, int k, size_t start,
+                          std::vector<int> &current,
+                          std::vector<std::vector<int>> &out) {
+  if (static_cast<int>(current.size()) == k) {
+    out.push_back(current);
+    return;
+  }
+  for (size_t i = start; i < items.size(); ++i) {
+    current.push_back(items[i]);
+    collect_combinations(items, k, i + 1, current, out);
+    current.pop_back();
+  }
+}
+
+} // namespace
+
 // A fresh game: empty board, White to move, opening move (exactly 1 stone).
 GameState::GameState(int side_length)
     : board_(side_length), to_move_(Cell::White), max_allowed_(1) {}
@@ -70,6 +89,25 @@ GameState GameState::apply_move(const std::vector<int> &move) const {
   }
 
   return GameState(std::move(new_board), next_to_move, next_max_allowed);
+}
+
+std::vector<std::vector<int>> GameState::legal_moves() const {
+  std::vector<int> empty_cells;
+  for (int slot = 0; slot < board_.num_cells(); ++slot) {
+    if (board_.color_at(slot) == Cell::Empty) {
+      empty_cells.push_back(slot);
+    }
+  }
+
+  std::vector<std::vector<int>> moves;
+  std::vector<int> current;
+  for (int k = min_allowed(); k <= max_allowed_; ++k) {
+    if (k > static_cast<int>(empty_cells.size())) {
+      break; // not enough empty cells left to reach this size
+    }
+    collect_combinations(empty_cells, k, 0, current, moves);
+  }
+  return moves;
 }
 
 } // namespace catchup

@@ -68,5 +68,6 @@ PYBIND11_MODULE(catchup_engine, m) {
         .def_property_readonly("winner", [](const catchup::GameState& state) {
             return cell_to_string(state.winner());
         })
-        .def("apply_move", &catchup::GameState::apply_move, py::arg("move"));
+        .def("apply_move", &catchup::GameState::apply_move, py::arg("move"))
+        .def("legal_moves", &catchup::GameState::legal_moves);
 }
