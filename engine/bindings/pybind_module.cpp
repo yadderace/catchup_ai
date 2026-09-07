@@ -46,6 +46,14 @@ PYBIND11_MODULE(catchup_engine, m) {
         .def("color_at", [](const catchup::Board& board, int slot) {
             return cell_to_string(board.color_at(slot));
         }, py::arg("slot"))
+        .def("cells", [](const catchup::Board& board) {
+            std::vector<std::string> colors;
+            colors.reserve(board.num_cells());
+            for (int slot = 0; slot < board.num_cells(); ++slot) {
+                colors.push_back(cell_to_string(board.color_at(slot)));
+            }
+            return colors;
+        })
         .def("place_stone", [](catchup::Board& board, int slot, const std::string& color) {
             board.place_stone(slot, string_to_stone_color(color));
         }, py::arg("slot"), py::arg("color"))
