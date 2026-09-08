@@ -1,8 +1,12 @@
-"""Application entry point (Task 8: window skeleton only -- no board yet)."""
+"""Application entry point."""
 
 import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow
+
+from board_widget import BoardWidget
+
+SIDE_LENGTH = 7
 
 
 class MainWindow(QMainWindow):
@@ -10,6 +14,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Catchup")
         self.resize(800, 600)
+        self.setCentralWidget(BoardWidget(SIDE_LENGTH))
 
 
 def main() -> None:
