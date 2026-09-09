@@ -5,7 +5,11 @@ from PySide6.QtWidgets import QWidget
 from hex_geometry import axial_to_pixel, hex_cells, hex_corners, pixel_to_axial
 
 BACKGROUND_COLOR = "#f0f0f0"
-EMPTY_CELL_COLOR = "#d9c7a3"
+CELL_COLORS = {
+    "empty": "#d9c7a3",
+    "white": "#fefefe",
+    "black": "#202020",
+}
 CELL_BORDER_COLOR = "#333333"
 SELECTED_BORDER_COLOR = "#1e88e5"
 MARGIN = 20
@@ -18,7 +22,17 @@ class BoardWidget(QWidget):
         self.cells = hex_cells(side_length)  # every valid (q, r) on this board
         self._cell_set = set(self.cells)
         self.selected: set[tuple[int, int]] = set()  # cells the user has clicked
+        self.cell_colors: dict[tuple[int, int], str] = {}  # (q, r) -> "empty"/"white"/"black", set by the caller
         self.setMinimumSize(400, 400)
+
+    def set_cell_colors(self, colors_by_coord: dict[tuple[int, int], str]) -> None:
+        """Replaces the board's cell colors (from the backend) and clears any selection."""
+        self.cell_colors = colors_by_coord
+        self.selected.clear()
+        self.update()
+
+    def selected_coords(self) -> set[tuple[int, int]]:
+        return set(self.selected)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -32,11 +46,12 @@ class BoardWidget(QWidget):
         normal_pen.setWidthF(1.5)
         selected_pen = QPen(QColor(SELECTED_BORDER_COLOR))
         selected_pen.setWidthF(3.5)
-        painter.setBrush(QBrush(QColor(EMPTY_CELL_COLOR))) 
 
         for cell in self.cells:
             q, r = cell
+            color = self.cell_colors.get(cell, "empty")
             painter.setPen(selected_pen if cell in self.selected else normal_pen)
+            painter.setBrush(QBrush(QColor(CELL_COLORS[color])))
             cell_x, cell_y = axial_to_pixel(q, r, hex_size)
             corners = hex_corners(center_x + cell_x, center_y + cell_y, hex_size * 0.98)
             painter.drawPolygon(QPolygonF([QPointF(x, y) for x, y in corners]))
@@ -46,12 +61,12 @@ class BoardWidget(QWidget):
             return
 
         # Map the click's pixel position back to a board cell, then toggle
-        # its selection.
+        # its selection -- only empty cells can be selected.
         hex_size, center_x, center_y = self._layout()
         pos = event.position()
         cell = pixel_to_axial(pos.x() - center_x, pos.y() - center_y, hex_size)
 
-        if cell in self._cell_set:  # ignore clicks that land outside the hexagon
+        if cell in self._cell_set and self.cell_colors.get(cell, "empty") == "empty":
             if cell in self.selected:
                 self.selected.remove(cell)
             else:
