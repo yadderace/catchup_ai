@@ -64,28 +64,33 @@ GameState GameState::apply_move(const std::vector<int> &move) const {
         "move size is outside [min_allowed, max_allowed]");
   }
 
-  // The opening move never triggers the catch-up bonus
+  // The opening move never triggers the catch-up bonus.
   const bool was_opening = board_.is_empty();
-  const int previous_largest =
-      was_opening ? 0
-                  : std::max(board_.largest_group_size(Cell::White),
-                             board_.largest_group_size(Cell::Black));
+  const Cell next_to_move =
+      (to_move_ == Cell::White) ? Cell::Black : Cell::White;
+
+  // The opponent's largest group is unaffected by the mover's own move
+  // (placing a stone never touches the other color's groups), so it's
+  // the same value before and after -- read once, from the board as it
+  // was before this move.
+  const int mover_largest_before = board_.largest_group_size(to_move_);
+  const int opponent_largest = board_.largest_group_size(next_to_move);
 
   Board new_board = board_;
   for (int slot : move) {
     new_board.place_stone(slot, to_move_);
   }
 
-  const Cell next_to_move =
-      (to_move_ == Cell::White) ? Cell::Black : Cell::White;
-
   int next_max_allowed;
   if (was_opening) {
     next_max_allowed = 2;
   } else {
-    const int new_largest = std::max(new_board.largest_group_size(Cell::White),
-                                     new_board.largest_group_size(Cell::Black));
-    next_max_allowed = (new_largest > previous_largest) ? 3 : 2;
+    // Bonus fires only on the transition from behind to level-or-ahead --
+    // not for simply staying ahead (or extending an existing lead).
+    const int mover_largest_after = new_board.largest_group_size(to_move_);
+    const bool caught_up =
+        mover_largest_before < opponent_largest && mover_largest_after >= opponent_largest;
+    next_max_allowed = caught_up ? 3 : 2;
   }
 
   return GameState(std::move(new_board), next_to_move, next_max_allowed);
