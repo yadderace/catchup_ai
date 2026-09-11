@@ -4,6 +4,7 @@ pybind11_add_module(catchup_engine
     bindings/pybind_module.cpp
     src/board.cpp
     src/game_state.cpp
+    src/search.cpp
 )
 
 target_include_directories(catchup_engine PRIVATE include)

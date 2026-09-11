@@ -6,6 +6,7 @@
 
 #include "catchup/board.hpp"
 #include "catchup/game_state.hpp"
+#include "catchup/search.hpp"
 
 namespace py = pybind11;
 
@@ -77,5 +78,10 @@ PYBIND11_MODULE(catchup_engine, m) {
             return cell_to_string(state.winner());
         })
         .def("apply_move", &catchup::GameState::apply_move, py::arg("move"))
-        .def("legal_moves", &catchup::GameState::legal_moves);
+        .def("legal_moves", static_cast<std::vector<std::vector<int>> (catchup::GameState::*)() const>(
+            &catchup::GameState::legal_moves))
+        .def("legal_moves", static_cast<std::vector<std::vector<int>> (catchup::GameState::*)(int) const>(
+            &catchup::GameState::legal_moves), py::arg("candidate_cap"));
+
+    m.def("ranked_candidate_cells", &catchup::ranked_candidate_cells, py::arg("board"), py::arg("candidate_cap"));
 }

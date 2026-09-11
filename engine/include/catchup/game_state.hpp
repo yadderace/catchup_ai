@@ -32,6 +32,10 @@ public:
   // cells with size in [min_allowed, max_allowed].
   std::vector<std::vector<int>> legal_moves() const;
 
+  // Same, but combinations are drawn only from a capped pool of the
+  // empty cells nearest existing stones.
+  std::vector<std::vector<int>> legal_moves(int candidate_cap) const;
+
 private:
   GameState(Board board, Cell to_move, int max_allowed);
 

@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include "catchup/search.hpp"
+
 namespace catchup {
 
 namespace {
@@ -69,10 +71,6 @@ GameState GameState::apply_move(const std::vector<int> &move) const {
   const Cell next_to_move =
       (to_move_ == Cell::White) ? Cell::Black : Cell::White;
 
-  // The opponent's largest group is unaffected by the mover's own move
-  // (placing a stone never touches the other color's groups), so it's
-  // the same value before and after -- read once, from the board as it
-  // was before this move.
   const int mover_largest_before = board_.largest_group_size(to_move_);
   const int opponent_largest = board_.largest_group_size(next_to_move);
 
@@ -85,11 +83,9 @@ GameState GameState::apply_move(const std::vector<int> &move) const {
   if (was_opening) {
     next_max_allowed = 2;
   } else {
-    // Bonus fires only on the transition from behind to level-or-ahead --
-    // not for simply staying ahead (or extending an existing lead).
     const int mover_largest_after = new_board.largest_group_size(to_move_);
-    const bool caught_up =
-        mover_largest_before < opponent_largest && mover_largest_after >= opponent_largest;
+    const bool caught_up = mover_largest_before < opponent_largest &&
+                           mover_largest_after >= opponent_largest;
     next_max_allowed = caught_up ? 3 : 2;
   }
 
@@ -111,6 +107,20 @@ std::vector<std::vector<int>> GameState::legal_moves() const {
       break; // not enough empty cells left to reach this size
     }
     collect_combinations(empty_cells, k, 0, current, moves);
+  }
+  return moves;
+}
+
+std::vector<std::vector<int>> GameState::legal_moves(int candidate_cap) const {
+  const std::vector<int> candidates = ranked_candidate_cells(board_, candidate_cap);
+
+  std::vector<std::vector<int>> moves;
+  std::vector<int> current;
+  for (int k = min_allowed(); k <= max_allowed_; ++k) {
+    if (k > static_cast<int>(candidates.size())) {
+      break; // not enough candidate cells to reach this size
+    }
+    collect_combinations(candidates, k, 0, current, moves);
   }
   return moves;
 }
