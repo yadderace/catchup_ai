@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <numeric>
 #include <stdexcept>
 #include <vector>
 
@@ -68,6 +70,79 @@ std::vector<int> ranked_candidate_cells(const Board &board, int candidate_cap) {
   }
 
   return candidates;
+}
+
+double evaluate(const GameState &state, Cell perspective) {
+  (void)state;
+  (void)perspective;
+
+  // If the game is over, return the winner
+  if (state.is_terminal()) {
+    Cell winner_player = state.winner();
+    if (winner_player == perspective) {
+      return 1000.0;
+    } else {
+      return -1000.0;
+    }
+  }
+
+  // Heuristic evaluation for non-terminal states
+  Cell opponent = (perspective == Cell::White) ? Cell::Black : Cell::White;
+  const Board &board = state.board();
+  std::vector<int> perspective_groups = board.sorted_group_sizes(perspective);
+  std::vector<int> opponent_groups = board.sorted_group_sizes(opponent);
+
+  Cell player_more_groups =
+      (perspective_groups.size() >= opponent_groups.size()) ? perspective
+                                                            : opponent;
+  int diff_groups = std::abs(static_cast<int>(perspective_groups.size()) -
+                             static_cast<int>(opponent_groups.size()));
+
+  // Summing the sizes of the stones of each player
+  int perspective_stones =
+      std::accumulate(perspective_groups.begin(), perspective_groups.end(), 0);
+  int opponent_stones =
+      std::accumulate(opponent_groups.begin(), opponent_groups.end(), 0);
+
+  // Iterate through the groups to check the current player win condition
+  std::vector<int> largest_groups_list = (player_more_groups == perspective)
+                                             ? perspective_groups
+                                             : opponent_groups;
+  std::vector<int> smallest_groups_list = (player_more_groups == perspective)
+                                              ? opponent_groups
+                                              : perspective_groups;
+  Cell winner_color = Cell::Empty;
+
+  for (size_t i = 0; i < largest_groups_list.size(); i++) {
+    int group_size = largest_groups_list[i];
+
+    int smallest_group_size =
+        (i < smallest_groups_list.size()) ? smallest_groups_list[i] : 0;
+    if (smallest_group_size == 0) {
+      winner_color = player_more_groups;
+      break;
+    }
+
+    if (group_size > smallest_group_size) {
+      winner_color = player_more_groups;
+      break;
+    }
+    if (group_size < smallest_group_size) {
+      winner_color =
+          (player_more_groups == Cell::White) ? Cell::Black : Cell::White;
+      break;
+    }
+  }
+
+  // Calculate the score
+  int coef_diff_groups = 2 * ((player_more_groups == perspective) ? 1 : -1);
+  int coef_winner = 10 * ((winner_color == Cell::Empty)
+                              ? 0
+                              : ((winner_color == perspective) ? 1 : -1));
+  double score = coef_diff_groups * diff_groups + coef_winner +
+                 perspective_stones - opponent_stones;
+
+  return score;
 }
 
 } // namespace catchup

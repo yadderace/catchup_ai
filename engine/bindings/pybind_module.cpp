@@ -84,4 +84,8 @@ PYBIND11_MODULE(catchup_engine, m) {
             &catchup::GameState::legal_moves), py::arg("candidate_cap"));
 
     m.def("ranked_candidate_cells", &catchup::ranked_candidate_cells, py::arg("board"), py::arg("candidate_cap"));
+
+    m.def("evaluate", [](const catchup::GameState& state, const std::string& perspective) {
+        return catchup::evaluate(state, string_to_stone_color(perspective));
+    }, py::arg("state"), py::arg("perspective"));
 }
