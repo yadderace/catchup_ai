@@ -145,8 +145,9 @@ double evaluate(const GameState &state, Cell perspective) {
   return score;
 }
 
-double minimax(const GameState &state, int depth, Cell maximizing_player,
-               int candidate_cap, long long &nodes_visited) {
+double minimax(const GameState &state, int depth, double alpha, double beta,
+               Cell maximizing_player, int candidate_cap,
+               long long &nodes_visited) {
 
   nodes_visited++;
 
@@ -155,34 +156,38 @@ double minimax(const GameState &state, int depth, Cell maximizing_player,
     return evaluate(state, maximizing_player);
   }
 
-  double best_score;
-
   // Maximizing player
   if (state.to_move() == maximizing_player) {
-    best_score = -kInfinity;
     const std::vector<std::vector<int>> moves =
         state.legal_moves(candidate_cap);
     for (const auto &move : moves) {
       const GameState child = state.apply_move(move);
-      const double score = minimax(child, depth - 1, maximizing_player,
-                                   candidate_cap, nodes_visited);
-      best_score = std::max(best_score, score);
+      const double score =
+          minimax(child, depth - 1, alpha, beta, maximizing_player,
+                  candidate_cap, nodes_visited);
+      alpha = std::max(alpha, score);
+      if (beta <= alpha) {
+        break;
+      }
     }
+    return alpha;
   }
   // Minimizing player
   else {
-    best_score = kInfinity;
     const std::vector<std::vector<int>> moves =
         state.legal_moves(candidate_cap);
     for (const auto &move : moves) {
       const GameState child = state.apply_move(move);
-      const double score = minimax(child, depth - 1, maximizing_player,
-                                   candidate_cap, nodes_visited);
-      best_score = std::min(best_score, score);
+      const double score =
+          minimax(child, depth - 1, alpha, beta, maximizing_player,
+                  candidate_cap, nodes_visited);
+      beta = std::min(beta, score);
+      if (beta <= alpha) {
+        break;
+      }
     }
+    return beta;
   }
-
-  return best_score;
 }
 
 SearchResult find_best_move(const GameState &state, int depth,
@@ -206,8 +211,8 @@ SearchResult find_best_move(const GameState &state, int depth,
   // Iterating through all legal moves and applying the minimax algorithm
   for (const std::vector<int> &move : moves) {
     const GameState child = state.apply_move(move);
-    const double score = minimax(child, depth - 1, maximizing_player,
-                                 candidate_cap, nodes_visited);
+    const double score = minimax(child, depth - 1, -kInfinity, kInfinity,
+                                 maximizing_player, candidate_cap, nodes_visited);
     if (!have_best || score > best_score) {
       best_score = score;
       best_move = move;

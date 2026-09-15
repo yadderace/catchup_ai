@@ -27,8 +27,10 @@ double evaluate(const GameState &state, Cell perspective);
 // Looks `depth` plies ahead from `state`, assuming both sides always play
 // their best available move (drawn from the candidate-pruned pool), and
 // returns state's score from maximizing_player's fixed point of view.
-double minimax(const GameState &state, int depth, Cell maximizing_player,
-               int candidate_cap, long long &nodes_visited);
+// Uses alpha/beta bounds to skip exploring parts of the tree.
+double minimax(const GameState &state, int depth, double alpha, double beta,
+               Cell maximizing_player, int candidate_cap,
+               long long &nodes_visited);
 
 // Tries every top-level candidate move for whoever state.to_move() is
 // (that becomes maximizing_player for the whole search), scores each

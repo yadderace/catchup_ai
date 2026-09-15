@@ -94,5 +94,6 @@ PYBIND11_MODULE(catchup_engine, m) {
         .def_readonly("score", &catchup::SearchResult::score)
         .def_readonly("nodes_visited", &catchup::SearchResult::nodes_visited);
 
-    m.def("find_best_move", &catchup::find_best_move, py::arg("state"), py::arg("depth"), py::arg("candidate_cap"));
+    m.def("find_best_move", &catchup::find_best_move, py::arg("state"), py::arg("depth"),
+          py::arg("candidate_cap"));
 }

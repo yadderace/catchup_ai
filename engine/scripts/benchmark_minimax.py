@@ -1,18 +1,14 @@
-"""Benchmark script for plain classic minimax (Task 3).
+"""Benchmark script for the minimax search (alpha-beta pruned).
 
 Not a formal test (this phase has none by design) -- runs find_best_move
 at a few (depth, candidate_cap) combinations on the real side-length-7
 board, from a couple of different game states, and prints a table of
-nodes visited and elapsed time. This is the actual deliverable: a
-written-down "before" baseline (plain minimax) that task 4's alpha-beta
-version gets benchmarked against.
-
-Note: minimax() is a Phase 2 code challenge -- this script will raise
-until that function is implemented.
+nodes visited and elapsed time.
 """
 
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "build" / "engine"))
@@ -20,8 +16,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "build" / "engine")
 import catchup_engine as ce
 
 SIDE_LENGTH = 7
-DEPTHS = (1, 2)
+DEPTHS = (1, 2, 3, 4, 5)
 CANDIDATE_CAPS = (6, 10)
+# (depth=5, cap=10) alone is projected at 20+ minutes (~80M nodes, extrapolated
+# from the measured growth rate) -- skipped as impractical for a benchmark
+# that's meant to be run and reviewed interactively.
+SKIP_COMBINATIONS = {(5, 10)}
+RESULTS_DIR = Path(__file__).resolve().parents[2] / "results"
+RESULTS_FILE = RESULTS_DIR / "benchmark_minimax.txt"
+
+_output_lines: list[str] = []
+
+
+def emit(line: str = "") -> None:
+    print(line)
+    _output_lines.append(line)
 
 
 def opening_state():
@@ -46,24 +55,32 @@ def midgame_state():
 
 
 def run(label, state):
-    print(f"\n=== {label} (to_move={state.to_move}, max_allowed={state.max_allowed}) ===")
+    emit(f"\n=== {label} (to_move={state.to_move}, max_allowed={state.max_allowed}) ===")
     header = f"{'depth':>5} {'cap':>4} {'nodes':>10} {'time (s)':>10} {'score':>10}  move"
-    print(header)
-    print("-" * len(header))
+    emit(header)
+    emit("-" * len(header))
     for depth in DEPTHS:
         for cap in CANDIDATE_CAPS:
+            if (depth, cap) in SKIP_COMBINATIONS:
+                emit(f"{depth:>5} {cap:>4}  (skipped -- impractically slow, see SKIP_COMBINATIONS)")
+                continue
             start = time.perf_counter()
             result = ce.find_best_move(state, depth, cap)
             elapsed = time.perf_counter() - start
-            print(
+            emit(
                 f"{depth:>5} {cap:>4} {result.nodes_visited:>10} {elapsed:>10.3f} "
                 f"{result.score:>10.2f}  {result.move}"
             )
 
 
 def main() -> None:
+    emit(f"benchmark run: {datetime.now().isoformat(timespec='seconds')}")
     run("opening", opening_state())
     run("a few moves in", midgame_state())
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_FILE.write_text("\n".join(_output_lines) + "\n")
+    print(f"\nresults written to {RESULTS_FILE}")
 
 
 if __name__ == "__main__":
