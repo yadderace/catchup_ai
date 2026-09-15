@@ -9,6 +9,8 @@
 
 namespace catchup {
 
+constexpr double kInfinity = 1e9;
+
 std::vector<int> ranked_candidate_cells(const Board &board, int candidate_cap) {
 
   if (candidate_cap <= 0) {
@@ -73,8 +75,6 @@ std::vector<int> ranked_candidate_cells(const Board &board, int candidate_cap) {
 }
 
 double evaluate(const GameState &state, Cell perspective) {
-  (void)state;
-  (void)perspective;
 
   // If the game is over, return the winner
   if (state.is_terminal()) {
@@ -143,6 +143,79 @@ double evaluate(const GameState &state, Cell perspective) {
                  perspective_stones - opponent_stones;
 
   return score;
+}
+
+double minimax(const GameState &state, int depth, Cell maximizing_player,
+               int candidate_cap, long long &nodes_visited) {
+
+  nodes_visited++;
+
+  // Checking if game state is terminal or depth is 0
+  if (state.is_terminal() || depth == 0) {
+    return evaluate(state, maximizing_player);
+  }
+
+  double best_score;
+
+  // Maximizing player
+  if (state.to_move() == maximizing_player) {
+    best_score = -kInfinity;
+    const std::vector<std::vector<int>> moves =
+        state.legal_moves(candidate_cap);
+    for (const auto &move : moves) {
+      const GameState child = state.apply_move(move);
+      const double score = minimax(child, depth - 1, maximizing_player,
+                                   candidate_cap, nodes_visited);
+      best_score = std::max(best_score, score);
+    }
+  }
+  // Minimizing player
+  else {
+    best_score = kInfinity;
+    const std::vector<std::vector<int>> moves =
+        state.legal_moves(candidate_cap);
+    for (const auto &move : moves) {
+      const GameState child = state.apply_move(move);
+      const double score = minimax(child, depth - 1, maximizing_player,
+                                   candidate_cap, nodes_visited);
+      best_score = std::min(best_score, score);
+    }
+  }
+
+  return best_score;
+}
+
+SearchResult find_best_move(const GameState &state, int depth,
+                            int candidate_cap) {
+  if (state.is_terminal()) {
+    throw std::logic_error("cannot find a move: the game is already over");
+  }
+  // Getting the player whose turn it is
+  const Cell maximizing_player = state.to_move();
+  // Getting all legal moves
+  const std::vector<std::vector<int>> moves = state.legal_moves(candidate_cap);
+  if (moves.empty()) {
+    throw std::logic_error("no legal moves available");
+  }
+
+  long long nodes_visited = 0;
+  std::vector<int> best_move;
+  double best_score = 0.0;
+  bool have_best = false;
+
+  // Iterating through all legal moves and applying the minimax algorithm
+  for (const std::vector<int> &move : moves) {
+    const GameState child = state.apply_move(move);
+    const double score = minimax(child, depth - 1, maximizing_player,
+                                 candidate_cap, nodes_visited);
+    if (!have_best || score > best_score) {
+      best_score = score;
+      best_move = move;
+      have_best = true;
+    }
+  }
+
+  return SearchResult{best_move, best_score, nodes_visited};
 }
 
 } // namespace catchup

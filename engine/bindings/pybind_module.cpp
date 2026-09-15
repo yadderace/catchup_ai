@@ -88,4 +88,11 @@ PYBIND11_MODULE(catchup_engine, m) {
     m.def("evaluate", [](const catchup::GameState& state, const std::string& perspective) {
         return catchup::evaluate(state, string_to_stone_color(perspective));
     }, py::arg("state"), py::arg("perspective"));
+
+    py::class_<catchup::SearchResult>(m, "SearchResult")
+        .def_readonly("move", &catchup::SearchResult::move)
+        .def_readonly("score", &catchup::SearchResult::score)
+        .def_readonly("nodes_visited", &catchup::SearchResult::nodes_visited);
+
+    m.def("find_best_move", &catchup::find_best_move, py::arg("state"), py::arg("depth"), py::arg("candidate_cap"));
 }
